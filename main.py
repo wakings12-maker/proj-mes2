@@ -46,7 +46,7 @@ class Cita(CitaEntrada):
     notas: str | None = None
 
 
-# Convierte una fila de SQLite en un objeto Tarea
+# Convierte 
 def fila_a_cita(fila: sqlite3.Row) -> Cita:
     return Cita(
         id=fila["id"],
@@ -59,7 +59,7 @@ def fila_a_cita(fila: sqlite3.Row) -> Cita:
     )
 
 
-# Busca una tarea por su ID
+# Busca 
 def buscar_cita(
     db: sqlite3.Connection,
     cita_id: int

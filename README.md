@@ -45,4 +45,6 @@ Las citas se almacenan en `citas.db` mediante SQLite. Los datos se conservan al 
 
 ## Capturas de `/docs`
 
-Agrega aquí dos capturas tomadas desde `/docs` y enlázalas desde este README antes de entregar el proyecto.
+![Captura de un Post de una cita](image.png)
+![Captura de un get listando las citas existentes](image-1.png)
+![Captura de el recordatorio creado con mi modelo ai](image-2.png)
