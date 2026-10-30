@@ -33,7 +33,7 @@ Documentación interactiva:
 | Método | Ruta | Descripción |
 |---|---|---|
 | POST | `/citas` | Crear una cita |
-| GET | `/citas` | Listar citas; admite `completada`, `limit` y `offset` |
+| GET | `/citas` | Listar citas; admite `confirmado`, `limit` y `offset` |
 | GET | `/citas/{cita_id}` | Consultar una cita |
 | PUT | `/citas/{cita_id}` | Actualizar una cita |
 | DELETE | `/citas/{cita_id}` | Eliminar una cita |
@@ -48,3 +48,4 @@ Las citas se almacenan en `citas.db` mediante SQLite. Los datos se conservan al 
 ![Captura de un Post de una cita](image.png)
 ![Captura de un get listando las citas existentes](image-1.png)
 ![Captura de el recordatorio creado con mi modelo ai](image-2.png)
+![Captura de el recordatorio creado con mi modelo ai y agregando una sugerencia](image-3.png)

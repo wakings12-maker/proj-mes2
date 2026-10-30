@@ -3,17 +3,9 @@ import sqlite3
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
-from datetime import date
-
+from datetime import date, time
+from ai import crear_recordatorio, ErrorIA
 from database import crear_tabla, get_db
-
-import os
-import httpx
-from dotenv import load_dotenv
-
-load_dotenv()
-
-API_KEY = os.getenv("AI_API_KEY")
 
 
 @asynccontextmanager
@@ -24,7 +16,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="API de Citas Salon de Belleza",
-    version="1.0",
+    version="2.0",
     lifespan=lifespan
 )
 
@@ -33,7 +25,7 @@ app = FastAPI(
 class CitaEntrada(BaseModel):
     cliente: str = Field(min_length=3, max_length=100)
     fecha: date
-    hora: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    hora: time 
     servicio: str | None = Field(default=None, max_length=100)
     confirmado: bool = False
     notas: str | None = Field(default=None, max_length=500)
@@ -43,7 +35,7 @@ class CitaEntrada(BaseModel):
 class Cita(CitaEntrada):
     id: int
     servicio: str | None = None
-    notas: str | None = None
+    notas: str | None = Field(default=None, max_length=500)
 
 
 # Convierte 
@@ -95,10 +87,10 @@ def crear_cita(
         (
             datos.cliente,
             datos.fecha.isoformat(),
-            datos.hora,
+            datos.hora.isoformat(),
             datos.servicio,
             int(datos.confirmado),
-            datos.notas
+            datos.notas,
         )
     )
     db.commit()
@@ -111,7 +103,7 @@ def crear_cita(
 
 @app.get("/citas", response_model=list[Cita])
 def listar_cita(
-    completada: bool | None = None,
+    confirmado: bool | None = None,
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: sqlite3.Connection = Depends(get_db)
@@ -119,9 +111,9 @@ def listar_cita(
     consulta = "SELECT * FROM citas"
     parametros = []
 
-    if completada is not None:
+    if confirmado is not None:
         consulta += " WHERE confirmado = ?"
-        parametros.append(int(completada))
+        parametros.append(int(confirmado))
 
     consulta += " ORDER BY id LIMIT ? OFFSET ?"
     parametros.extend([limit, offset])
@@ -161,7 +153,7 @@ def actualizar_cita(
         (
             datos.cliente,
             datos.fecha.isoformat(),
-            datos.hora,
+            datos.hora.isoformat(),
             datos.servicio,
             int(datos.confirmado),
             datos.notas,
@@ -193,58 +185,18 @@ def eliminar_cita(
     return None
 
 # Endpoint inteligente: genera un recordatorio con IA y lo guarda como nota
-@app.post("/citas/{cita_id}/recordatorio")
+
+@app.post("/citas/{cita_id}/recordatorio", response_model=Cita)
 def generar_recordatorio(cita_id: int, db: sqlite3.Connection = Depends(get_db)):
     cita = buscar_cita(db, cita_id)
-
-    if not API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No está configurada la clave de IA (AI_API_KEY)",
-        )
-
-    prompt = (
-        f"Crea un recordatorio breve, amable y profesional en español para {cita['cliente']}. "
-        f"La cita es el {cita['fecha']} a las {cita['hora']} para "
-        f"{cita['servicio'] or 'un servicio de belleza'}. No uses datos reales."
-    )
-
+    
     try:
-        respuesta = httpx.post(
-            "https://api.openai.com/v1/responses",
-            headers={"Authorization": f"Bearer {API_KEY}"},
-            json={
-                "model": os.getenv("AI_MODEL", "gpt-4o-mini"),
-                "input": prompt,
-            },
-            timeout=30.0,
-        )
-        respuesta.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"El proveedor de IA respondió con error: {exc.response.status_code}",
-        ) from exc
-    except httpx.RequestError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="No se pudo conectar con el proveedor de IA",
-        ) from exc
+        res = crear_recordatorio(cita["cliente"], cita["fecha"], cita["hora"], cita["servicio"])
+    except ErrorIA as error:
+        raise HTTPException(status_code=503, detail=str(error))
 
-    datos_respuesta = respuesta.json()
-    resultado = datos_respuesta.get("output_text")
-    if not resultado:
-        textos = []
-        for parte in datos_respuesta.get("output", []):
-            for contenido in parte.get("content", []):
-                if contenido.get("type") == "output_text":
-                    textos.append(contenido.get("text", ""))
-        resultado = " ".join(textos).strip()
-
-    if not resultado:
-        raise HTTPException(status_code=502, detail="La IA no devolvió texto")
-
-    resultado = resultado[:500]
-    db.execute("UPDATE citas SET notas = ? WHERE id = ?", (resultado, cita_id))
+    resultado = f"{res.reminder} {res.sugerencia}".strip()[:500]
+    db.execute(
+        "UPDATE citas SET notas = ? WHERE id = ?", (resultado, cita_id))
     db.commit()
-    return {"cita_id": cita_id, "recordatorio": resultado}
+    return fila_a_cita(buscar_cita(db, cita_id))
