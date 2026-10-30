@@ -1,6 +1,6 @@
 # API de citas para salón de belleza
 
-API desarrollada con FastAPI para gestionar ficticiamente citas de un salón de belleza y generar recordatorios mediante inteligencia artificial.
+API desarrollada con FastAPI para gestionar ficticiamente citas de un salón de belleza y generar recordatorios y sugerencias de que debe evitar el clientes antes y despues del servicio, mediante inteligencia artificial.
 
 ## Instalación
 
@@ -11,8 +11,12 @@ cp .env.example .env
 
 En Windows, PowerShell:
 
-```powershell
-Copy-Item .env.example .env
+```powershell dentro de la carpeta o repositorio
+uv init --no-package {nombre de tu carpeta} ---para crear carpeta e inicializar
+python -m pip install fastapi uvicorn ---para instalar dependencias fastapi
+python -m pip install pytest httpx ---para instalar dependencias httpx
+Copy-Item .env.example .env ---para que configures 
+
 ```
 
 Configura `AI_API_KEY` en `.env` con tu clave personal de OpenAI. Nunca subas `.env` a GitHub.

@@ -13,7 +13,7 @@ async def lifespan(app: FastAPI):
     crear_tabla()
     yield
 
-
+#Identifico la API y su version
 app = FastAPI(
     title="API de Citas Salon de Belleza",
     version="2.0",
@@ -21,7 +21,7 @@ app = FastAPI(
 )
 
 
-# 
+# Modelo de los datos que debe tener la cita
 class CitaEntrada(BaseModel):
     cliente: str = Field(min_length=3, max_length=100)
     fecha: date
@@ -31,14 +31,14 @@ class CitaEntrada(BaseModel):
     notas: str | None = Field(default=None, max_length=500)
 
 
-# Modelo de respuesta
+# Modelo de respuesta de la cita
 class Cita(CitaEntrada):
     id: int
     servicio: str | None = None
     notas: str | None = Field(default=None, max_length=500)
 
 
-# Convierte 
+# Convierte el registro de la base de datos en una lista JSON
 def fila_a_cita(fila: sqlite3.Row) -> Cita:
     return Cita(
         id=fila["id"],
@@ -51,7 +51,7 @@ def fila_a_cita(fila: sqlite3.Row) -> Cita:
     )
 
 
-# Busca 
+# Busca la cita con el ID suministrado
 def buscar_cita(
     db: sqlite3.Connection,
     cita_id: int
@@ -69,7 +69,7 @@ def buscar_cita(
 
     return fila
 
-# CREAR 
+# Endpoint POST para crear la cita
 @app.post(
     "/citas",
     response_model=Cita,
@@ -99,12 +99,12 @@ def crear_cita(
     return fila_a_cita(fila)
 
 
-# LISTAR
-
+# Endpoint GET para LISTAR todas las citas
+#defino limites en caso de que tenga muchas citas y que puede filtrar si esta confirmado o no
 @app.get("/citas", response_model=list[Cita])
 def listar_cita(
     confirmado: bool | None = None,
-    limit: int = Query(default=20, ge=1, le=100),
+    limit: int = Query(default=20, ge=1, le=100), 
     offset: int = Query(default=0, ge=0),
     db: sqlite3.Connection = Depends(get_db)
 ):
@@ -125,7 +125,7 @@ def listar_cita(
     return [fila_a_cita(fila) for fila in filas]
 
 
-# CONSULTAR
+# Endpoint GET para CONSULTAR una cita en especifico
 @app.get("/citas/{cita_id}", response_model=Cita)
 def obtener_cita(
     cita_id: int,
@@ -135,7 +135,7 @@ def obtener_cita(
     return fila_a_cita(fila)
 
 
-# ACTUALIZAR
+# Endpoint PUT para ACTUALIZAR una cita en especifico
 @app.put("/citas/{cita_id}", response_model=Cita)
 def actualizar_cita(
     cita_id: int,
@@ -165,7 +165,7 @@ def actualizar_cita(
     return fila_a_cita(buscar_cita(db, cita_id))
 
 
-# ELIMINAR 
+# Endpoint DELETE para ELIMINAR una cita en especifico 
 @app.delete(
     "/citas/{cita_id}",
     status_code=status.HTTP_204_NO_CONTENT
@@ -184,7 +184,7 @@ def eliminar_cita(
 
     return None
 
-# Endpoint inteligente: genera un recordatorio con IA y lo guarda como nota
+# Endpoint inteligente: genera un recordatorio de la cita con IA, da una recmendacion de que evitar antes y despues del servicio y lo guarda como nota
 
 @app.post("/citas/{cita_id}/recordatorio", response_model=Cita)
 def generar_recordatorio(cita_id: int, db: sqlite3.Connection = Depends(get_db)):
